@@ -21,7 +21,7 @@ metadata:
   name: product-service
   namespace: shopsecure-prod
   annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/shopsecure-product-service-role
+    eks.amazonaws.com/role-arn: arn:aws:iam:::role/shopsecure-product-service-role
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

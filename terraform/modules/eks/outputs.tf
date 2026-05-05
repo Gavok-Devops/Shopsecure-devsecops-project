@@ -4,3 +4,6 @@ output "cluster_ca_certificate"    { value = aws_eks_cluster.main.certificate_au
 output "cluster_oidc_issuer_url"   { value = aws_eks_cluster.main.identity[0].oidc[0].issuer }
 output "oidc_provider_arn"         { value = aws_iam_openid_connect_provider.eks.arn }
 output "node_role_arn"             { value = aws_iam_role.eks_node.arn }
+output "cluster_security_group_id" { value = aws_security_group.cluster.id }
+output "alb_controller_role_arn"   { value = aws_iam_role.alb_controller.arn }
+output "ebs_csi_role_arn"          { value = aws_iam_role.ebs_csi.arn }

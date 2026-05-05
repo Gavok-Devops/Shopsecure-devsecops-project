@@ -8,7 +8,7 @@ namespace: shopsecure-dev
 
 images:
   - name: REGISTRY/product-service
-    newName: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/shopsecure/product-service
+    newName: 887998956998.dkr.ecr.us-east-1.amazonaws.com/shopsecure/product-service
     newTag: latest
 
 patches:

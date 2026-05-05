@@ -4,7 +4,7 @@ terraform {
     aws = { source = "hashicorp/aws", version = "~> 5.0" }
   }
   backend "s3" {
-    bucket         = "shopsecure-terraform-state-ACCOUNT_ID"
+    bucket         = "shopsecure-terraform-state-887998956998"
     key            = "global/terraform.tfstate"
     region         = "us-east-1"
     dynamodb_table = "shopsecure-terraform-locks"
@@ -54,9 +54,9 @@ resource "aws_acm_certificate_validation" "main" {
 variable "domain_name" {
   type        = string
   description = "Root domain name (e.g. shopsecure.io)"
-  default     = "shopsecure.io"
+  default     = "teamcsolutions.com"
 }
 
-output "zone_id"         { value = aws_route53_zone.main.zone_id }
+output "zone_id" { value = aws_route53_zone.main.zone_id }
 output "certificate_arn" { value = aws_acm_certificate.main.arn }
-output "name_servers"    { value = aws_route53_zone.main.name_servers }
+output "name_servers" { value = aws_route53_zone.main.name_servers }
