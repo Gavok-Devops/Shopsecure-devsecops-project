@@ -1,0 +1,61 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: shopsecure
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: ShopSecure E-Commerce Platform
+
+  sourceRepos:
+    - "https://github.com/YOUR_ORG/shopsecure-gitops"
+    - "https://charts.bitnami.com/bitnami"
+    - "https://prometheus-community.github.io/helm-charts"
+    - "https://charts.jenkins.io"
+
+  destinations:
+    - namespace: shopsecure-prod
+      server: https://kubernetes.default.svc
+    - namespace: shopsecure-staging
+      server: https://kubernetes.default.svc
+    - namespace: shopsecure-dev
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: jenkins
+      server: https://kubernetes.default.svc
+
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: "rbac.authorization.k8s.io"
+      kind: ClusterRole
+    - group: "rbac.authorization.k8s.io"
+      kind: ClusterRoleBinding
+
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: ResourceQuota
+
+  roles:
+    - name: developer
+      policies:
+        - p, proj:shopsecure:developer, applications, sync, shopsecure/*, allow
+        - p, proj:shopsecure:developer, applications, get, shopsecure/*, allow
+    - name: admin
+      policies:
+        - p, proj:shopsecure:admin, applications, *, shopsecure/*, allow
+
+  syncWindows:
+    - kind: allow
+      schedule: "* * * * *"
+      duration: 24h
+      namespaces:
+        - shopsecure-dev
+    - kind: allow
+      schedule: "0 9-17 * * 1-5"
+      duration: 1h
+      namespaces:
+        - shopsecure-prod
+      manualSync: true

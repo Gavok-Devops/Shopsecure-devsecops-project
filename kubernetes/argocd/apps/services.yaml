@@ -1,0 +1,79 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: auth-service
+  namespace: argocd
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: shopsecure
+  source:
+    repoURL: https://github.com/YOUR_ORG/shopsecure-gitops
+    targetRevision: main
+    path: kubernetes/overlays/prod/auth-service
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: shopsecure-prod
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]
+    retry: { limit: 5, backoff: { duration: 5s, factor: 2, maxDuration: 3m } }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: order-service
+  namespace: argocd
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: shopsecure
+  source:
+    repoURL: https://github.com/YOUR_ORG/shopsecure-gitops
+    targetRevision: main
+    path: kubernetes/overlays/prod/order-service
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: shopsecure-prod
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]
+    retry: { limit: 5, backoff: { duration: 5s, factor: 2, maxDuration: 3m } }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: payment-service
+  namespace: argocd
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: shopsecure
+  source:
+    repoURL: https://github.com/YOUR_ORG/shopsecure-gitops
+    targetRevision: main
+    path: kubernetes/overlays/prod/payment-service
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: shopsecure-prod
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]
+    retry: { limit: 5, backoff: { duration: 5s, factor: 2, maxDuration: 3m } }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: frontend
+  namespace: argocd
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: shopsecure
+  source:
+    repoURL: https://github.com/YOUR_ORG/shopsecure-gitops
+    targetRevision: main
+    path: kubernetes/overlays/prod/frontend
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: shopsecure-prod
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]
+    retry: { limit: 5, backoff: { duration: 5s, factor: 2, maxDuration: 3m } }

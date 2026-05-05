@@ -1,0 +1,85 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "annotations": { "list": [] },
+  "description": "ShopSecure — Service Overview Dashboard",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Request Rate (RPS)",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "id": 2,
+      "options": { "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{namespace=\"shopsecure-prod\"}[5m])) by (service)",
+          "legendFormat": "{{ service }}",
+          "refId": "A"
+        }
+      ],
+      "title": "Requests per Second by Service",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "unit": "s", "thresholds": {
+          "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 0.5 },
+            { "color": "red", "value": 2.0 }
+          ]
+        }}
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{namespace=\"shopsecure-prod\"}[5m])) by (le, service))",
+          "legendFormat": "p99 {{ service }}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{namespace=\"shopsecure-prod\"}[5m])) by (le, service))",
+          "legendFormat": "p50 {{ service }}",
+          "refId": "B"
+        }
+      ],
+      "title": "Latency (P99 / P50)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["shopsecure", "services"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": "Prometheus",
+        "definition": "label_values(up{namespace=~\"shopsecure-.*\"}, service)",
+        "label": "Service",
+        "name": "service",
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "ShopSecure — Service Overview",
+  "uid": "shopsecure-services",
+  "version": 1
+}

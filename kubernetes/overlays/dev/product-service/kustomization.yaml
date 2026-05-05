@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../base/product-service
+
+namespace: shopsecure-dev
+
+images:
+  - name: REGISTRY/product-service
+    newName: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/shopsecure/product-service
+    newTag: latest
+
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: product-service
+  - patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3
+    target:
+      kind: HorizontalPodAutoscaler
+      name: product-service

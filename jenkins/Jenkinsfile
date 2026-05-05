@@ -1,0 +1,204 @@
+// jenkins/Jenkinsfile — ShopSecure Master CI Pipeline
+pipeline {
+  agent {
+    kubernetes {
+      yaml '''
+        apiVersion: v1
+        kind: Pod
+        spec:
+          containers:
+            - name: docker
+              image: docker:24-dind
+              securityContext:
+                privileged: true
+            - name: tools
+              image: alpine/k8s:1.31.0
+              command: ["cat"]
+              tty: true
+      '''
+    }
+  }
+
+  environment {
+    AWS_REGION    = 'us-east-1'
+    ECR_REGISTRY  = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    IMAGE_NAME    = "${env.SERVICE_NAME}"
+    IMAGE_TAG     = "${env.GIT_COMMIT.take(8)}"
+    SONAR_PROJECT = "shopsecure-${env.SERVICE_NAME}"
+    GITOPS_REPO   = "https://github.com/YOUR_ORG/shopsecure-gitops.git"
+  }
+
+  options {
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+    timeout(time: 30, unit: 'MINUTES')
+    timestamps()
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        git branch: env.BRANCH_NAME ?: 'main',
+            url: env.REPO_URL,
+            credentialsId: 'github-token'
+        sh 'git log -1 --oneline'
+      }
+    }
+
+    stage('Security: Secret Scan') {
+      steps {
+        container('tools') {
+          sh '''
+            gitleaks detect --source . \
+              --report-format json \
+              --report-path gitleaks-report.json \
+              --exit-code 1 || \
+            (cat gitleaks-report.json; exit 1)
+          '''
+        }
+      }
+      post {
+        always { archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true }
+      }
+    }
+
+    stage('Unit Tests') {
+      steps {
+        sh 'npm ci'
+        sh 'npm test -- --coverage --reporters=jest-junit'
+      }
+      post {
+        always {
+          junit 'test-results/**/*.xml'
+          publishCoverage adapters: [istanbulCoberturaAdapter('coverage/cobertura-coverage.xml')]
+        }
+      }
+    }
+
+    stage('Security: SAST (SonarQube)') {
+      steps {
+        withSonarQubeEnv('SonarQube') {
+          sh """
+            sonar-scanner \
+              -Dsonar.projectKey=${SONAR_PROJECT} \
+              -Dsonar.sources=src \
+              -Dsonar.tests=tests \
+              -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+          """
+        }
+        timeout(time: 5, unit: 'MINUTES') {
+          waitForQualityGate abortPipeline: true
+        }
+      }
+    }
+
+    stage('Security: Dependency Check') {
+      steps {
+        dependencyCheck(
+          additionalArguments: '--scan . --format JSON --format HTML --out dependency-check',
+          odcInstallation: 'DepCheck'
+        )
+        dependencyCheckPublisher(
+          pattern: 'dependency-check/dependency-check-report.json',
+          failedTotalCritical: 0,
+          failedTotalHigh: 5
+        )
+      }
+      post {
+        always { archiveArtifacts artifacts: 'dependency-check/**', allowEmptyArchive: true }
+      }
+    }
+
+    stage('Build Docker Image') {
+      steps {
+        container('docker') {
+          sh """
+            docker build \
+              --build-arg BUILD_DATE=\$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+              --build-arg VCS_REF=${IMAGE_TAG} \
+              --build-arg VERSION=${IMAGE_TAG} \
+              --no-cache \
+              -t ${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} \
+              -t ${ECR_REGISTRY}/${IMAGE_NAME}:latest .
+          """
+        }
+      }
+    }
+
+    stage('Security: Container Scan (Trivy)') {
+      steps {
+        container('tools') {
+          sh """
+            trivy image \
+              --exit-code 1 \
+              --severity HIGH,CRITICAL \
+              --format json \
+              --output trivy-report.json \
+              ${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+          """
+        }
+      }
+      post {
+        always { archiveArtifacts artifacts: 'trivy-report.json', allowEmptyArchive: true }
+      }
+    }
+
+    stage('Push to ECR') {
+      steps {
+        container('docker') {
+          withAWS(region: env.AWS_REGION) {
+            sh 'aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}'
+            sh 'docker push ${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}'
+            sh 'docker push ${ECR_REGISTRY}/${IMAGE_NAME}:latest'
+          }
+        }
+      }
+    }
+
+    stage('Update GitOps Repo') {
+      when {
+        branch 'main'
+      }
+      steps {
+        container('tools') {
+          withCredentials([string(credentialsId: 'github-token', variable: 'GH_TOKEN')]) {
+            sh """
+              git clone https://\${GH_TOKEN}@github.com/YOUR_ORG/shopsecure-gitops.git /tmp/gitops
+              cd /tmp/gitops
+              sed -i "s|newTag:.*|newTag: ${IMAGE_TAG}|g" \
+                kubernetes/overlays/prod/${IMAGE_NAME}/kustomization.yaml
+              git config user.email 'jenkins@shopsecure.io'
+              git config user.name 'Jenkins CI'
+              git add -A
+              git diff --staged --quiet || \
+                git commit -m "feat(deploy): update ${IMAGE_NAME} to ${IMAGE_TAG} [skip ci]"
+              git push origin main
+            """
+          }
+        }
+      }
+    }
+
+  } // end stages
+
+  post {
+    always {
+      archiveArtifacts artifacts: '**/*.json', allowEmptyArchive: true
+      cleanWs()
+    }
+    success {
+      slackSend(
+        channel: '#deployments',
+        color: 'good',
+        message: ":white_check_mark: *${IMAGE_NAME}:${IMAGE_TAG}* deployed to prod\nBuild: ${env.BUILD_URL}"
+      )
+    }
+    failure {
+      slackSend(
+        channel: '#alerts',
+        color: 'danger',
+        message: ":x: Pipeline FAILED: *${env.JOB_NAME}* #${env.BUILD_NUMBER}\n${env.BUILD_URL}"
+      )
+    }
+  }
+}

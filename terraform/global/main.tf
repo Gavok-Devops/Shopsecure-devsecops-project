@@ -1,0 +1,62 @@
+terraform {
+  required_version = ">= 1.7.0"
+  required_providers {
+    aws = { source = "hashicorp/aws", version = "~> 5.0" }
+  }
+  backend "s3" {
+    bucket         = "shopsecure-terraform-state-ACCOUNT_ID"
+    key            = "global/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "shopsecure-terraform-locks"
+    encrypt        = true
+  }
+}
+
+provider "aws" { region = "us-east-1" }
+
+# ── Route53 hosted zone ───────────────────────────────────────────────────────
+resource "aws_route53_zone" "main" {
+  name = var.domain_name
+  tags = { Project = "shopsecure", ManagedBy = "terraform" }
+}
+
+# ── ACM certificate (must be in us-east-1 for CloudFront) ────────────────────
+resource "aws_acm_certificate" "main" {
+  domain_name               = var.domain_name
+  subject_alternative_names = ["*.${var.domain_name}"]
+  validation_method         = "DNS"
+  lifecycle { create_before_destroy = true }
+  tags = { Project = "shopsecure", ManagedBy = "terraform" }
+}
+
+resource "aws_route53_record" "cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.main.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = aws_route53_zone.main.zone_id
+}
+
+resource "aws_acm_certificate_validation" "main" {
+  certificate_arn         = aws_acm_certificate.main.arn
+  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
+}
+
+variable "domain_name" {
+  type        = string
+  description = "Root domain name (e.g. shopsecure.io)"
+  default     = "shopsecure.io"
+}
+
+output "zone_id"         { value = aws_route53_zone.main.zone_id }
+output "certificate_arn" { value = aws_acm_certificate.main.arn }
+output "name_servers"    { value = aws_route53_zone.main.name_servers }
