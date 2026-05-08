@@ -42,7 +42,7 @@ spec:
               app: product-service
       containers:
         - name: product-service
-          image: REGISTRY/product-service:latest  # Updated by Jenkins
+          image: 887998956998.dkr.ecr.us-east-1.amazonaws.com/shopsecure/product-service:latest  # Updated by Jenkins
           ports:
             - containerPort: 8080
               name: http
