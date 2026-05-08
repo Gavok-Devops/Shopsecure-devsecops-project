@@ -7,6 +7,6 @@ resources:
 namespace: shopsecure-prod
 
 images:
-  - name: REGISTRY/order-service
-    newName: .dkr.ecr.us-east-1.amazonaws.com/shopsecure/order-service
+  - name: 887998956998.dkr.ecr.us-east-1.amazonaws.com/shopsecure/order-service
+    newName: 887998956998.dkr.ecr.us-east-1.amazonaws.com/shopsecure/order-service
     newTag: latest

@@ -7,6 +7,6 @@ resources:
 namespace: shopsecure-prod
 
 images:
-  - name: REGISTRY/frontend
-    newName: .dkr.ecr.us-east-1.amazonaws.com/shopsecure/frontend
+  - name: 887998956998.dkr.ecr.us-east-1.amazonaws.com/shopsecure/frontend
+    newName: 887998956998.dkr.ecr.us-east-1.amazonaws.com/shopsecure/frontend
     newTag: latest

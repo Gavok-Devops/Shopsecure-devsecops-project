@@ -7,6 +7,6 @@ resources:
 namespace: shopsecure-prod
 
 images:
-  - name: REGISTRY/payment-service
-    newName: .dkr.ecr.us-east-1.amazonaws.com/shopsecure/payment-service
+  - name: 887998956998.dkr.ecr.us-east-1.amazonaws.com/shopsecure/payment-service
+    newName: 887998956998.dkr.ecr.us-east-1.amazonaws.com/shopsecure/payment-service
     newTag: latest
