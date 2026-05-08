@@ -9,12 +9,12 @@ spec:
   description: ShopSecure E-Commerce Platform
 
   sourceRepos:
-    - "https://github.com/YOUR_ORG/shopsecure-gitops"
-    - "https://charts.bitnami.com/bitnami"
-    - "https://prometheus-community.github.io/helm-charts"
-    - "https://charts.jenkins.io"
+    - "https://github.com/Gavok-Devops/Shopsecure-devsecops-project"
+    - "https://github.com/Gavok-Devops/Shopsecure-devsecops-project.git"
 
   destinations:
+    - namespace: argocd
+      server: https://kubernetes.default.svc
     - namespace: shopsecure-prod
       server: https://kubernetes.default.svc
     - namespace: shopsecure-staging
@@ -33,10 +33,8 @@ spec:
       kind: ClusterRole
     - group: "rbac.authorization.k8s.io"
       kind: ClusterRoleBinding
-
-  namespaceResourceBlacklist:
-    - group: ""
-      kind: ResourceQuota
+    - group: "argoproj.io"
+      kind: Application
 
   roles:
     - name: developer
@@ -46,16 +44,3 @@ spec:
     - name: admin
       policies:
         - p, proj:shopsecure:admin, applications, *, shopsecure/*, allow
-
-  syncWindows:
-    - kind: allow
-      schedule: "* * * * *"
-      duration: 24h
-      namespaces:
-        - shopsecure-dev
-    - kind: allow
-      schedule: "0 9-17 * * 1-5"
-      duration: 1h
-      namespaces:
-        - shopsecure-prod
-      manualSync: true

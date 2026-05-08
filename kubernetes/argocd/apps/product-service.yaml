@@ -10,7 +10,7 @@ metadata:
 spec:
   project: shopsecure
   source:
-    repoURL: https://github.com/YOUR_ORG/shopsecure-gitops
+    repoURL: https://github.com/Gavok-Devops/Shopsecure-devsecops-project
     targetRevision: main
     path: kubernetes/overlays/prod/product-service
   destination:
