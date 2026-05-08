@@ -1,0 +1,70 @@
+# ── Application Ingress (ShopSecure frontend + API) ───────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shopsecure-ingress
+  namespace: shopsecure-prod
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # Certificate for teamcsolutions.com — populated from Terraform output
+    alb.ingress.kubernetes.io/certificate-arn: "CERTIFICATE_ARN"
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/tags: "Project=shopsecure,Environment=prod,Domain=teamcsolutions.com"
+spec:
+  rules:
+    - host: app.teamcsolutions.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+    - host: api.teamcsolutions.com
+      http:
+        paths:
+          - path: /api/v1/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 80
+          - path: /api/v1/products
+            pathType: Prefix
+            backend:
+              service:
+                name: product-service
+                port:
+                  number: 80
+          - path: /api/v1/orders
+            pathType: Prefix
+            backend:
+              service:
+                name: order-service
+                port:
+                  number: 80
+          - path: /api/v1/payments
+            pathType: Prefix
+            backend:
+              service:
+                name: payment-service
+                port:
+                  number: 80
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: product-service
+                port:
+                  number: 80

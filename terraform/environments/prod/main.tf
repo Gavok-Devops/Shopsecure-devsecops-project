@@ -23,7 +23,6 @@ provider "aws" {
   default_tags { tags = local.common_tags }
 }
 
-# Kubernetes and Helm providers use EKS credentials
 provider "kubernetes" {
   host                   = module.eks.cluster_endpoint
   cluster_ca_certificate = base64decode(module.eks.cluster_ca_certificate)
@@ -47,14 +46,29 @@ provider "helm" {
 }
 
 locals {
+  domain_name = "teamcsolutions.com"
   common_tags = {
     Project     = "shopsecure"
     Environment = "prod"
     ManagedBy   = "terraform"
+    Domain      = local.domain_name
     Team        = "platform"
   }
 }
 
+# ── Reference global outputs (cert + zone) ────────────────────────────────────
+data "aws_route53_zone" "main" {
+  name         = "${local.domain_name}."
+  private_zone = false
+}
+
+data "aws_acm_certificate" "main" {
+  domain      = local.domain_name
+  statuses    = ["ISSUED"]
+  most_recent = true
+}
+
+# ── VPC ───────────────────────────────────────────────────────────────────────
 module "vpc" {
   source             = "../../modules/vpc"
   project            = "shopsecure"
@@ -64,6 +78,7 @@ module "vpc" {
   common_tags        = local.common_tags
 }
 
+# ── ECR ───────────────────────────────────────────────────────────────────────
 module "ecr" {
   source      = "../../modules/ecr"
   project     = "shopsecure"
@@ -71,6 +86,7 @@ module "ecr" {
   common_tags = local.common_tags
 }
 
+# ── EKS ───────────────────────────────────────────────────────────────────────
 module "eks" {
   source              = "../../modules/eks"
   project             = "shopsecure"
@@ -82,6 +98,7 @@ module "eks" {
   common_tags         = local.common_tags
 }
 
+# ── RDS PostgreSQL ────────────────────────────────────────────────────────────
 module "rds" {
   source                     = "../../modules/rds"
   project                    = "shopsecure"
@@ -96,6 +113,7 @@ module "rds" {
   common_tags                = local.common_tags
 }
 
+# ── ElastiCache Redis ─────────────────────────────────────────────────────────
 module "elasticache" {
   source                     = "../../modules/elasticache"
   project                    = "shopsecure"
@@ -107,7 +125,7 @@ module "elasticache" {
   common_tags                = local.common_tags
 }
 
-# ── AWS Load Balancer Controller (Helm) ───────────────────────────────────────
+# ── AWS Load Balancer Controller ──────────────────────────────────────────────
 resource "helm_release" "alb_controller" {
   name       = "aws-load-balancer-controller"
   repository = "https://aws.github.io/eks-charts"
@@ -138,3 +156,47 @@ resource "helm_release" "alb_controller" {
 
   depends_on = [module.eks]
 }
+
+# ── Route53 DNS records for platform services ─────────────────────────────────
+# These are created after the ALB is provisioned by the LB controller.
+# Uncomment and run terraform apply again after ALB hostnames are available.
+
+# resource "aws_route53_record" "app" {
+#   zone_id = data.aws_route53_zone.main.zone_id
+#   name    = "app.teamcsolutions.com"
+#   type    = "CNAME"
+#   ttl     = 300
+#   records = ["YOUR_ALB_HOSTNAME"]
+# }
+
+# resource "aws_route53_record" "api" {
+#   zone_id = data.aws_route53_zone.main.zone_id
+#   name    = "api.teamcsolutions.com"
+#   type    = "CNAME"
+#   ttl     = 300
+#   records = ["YOUR_ALB_HOSTNAME"]
+# }
+
+# resource "aws_route53_record" "jenkins" {
+#   zone_id = data.aws_route53_zone.main.zone_id
+#   name    = "jenkins.teamcsolutions.com"
+#   type    = "CNAME"
+#   ttl     = 300
+#   records = ["YOUR_JENKINS_LB_HOSTNAME"]
+# }
+
+# resource "aws_route53_record" "argocd" {
+#   zone_id = data.aws_route53_zone.main.zone_id
+#   name    = "argocd.teamcsolutions.com"
+#   type    = "CNAME"
+#   ttl     = 300
+#   records = ["YOUR_ARGOCD_LB_HOSTNAME"]
+# }
+
+# resource "aws_route53_record" "grafana" {
+#   zone_id = data.aws_route53_zone.main.zone_id
+#   name    = "grafana.teamcsolutions.com"
+#   type    = "CNAME"
+#   ttl     = 300
+#   records = ["YOUR_GRAFANA_LB_HOSTNAME"]
+# }

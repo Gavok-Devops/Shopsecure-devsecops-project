@@ -14,21 +14,31 @@ terraform {
 
 provider "aws" { region = "us-east-1" }
 
-# ── Route53 hosted zone ───────────────────────────────────────────────────────
-resource "aws_route53_zone" "main" {
-  name = var.domain_name
-  tags = { Project = "shopsecure", ManagedBy = "terraform" }
+# ── Reference existing Route53 hosted zone ────────────────────────────────────
+data "aws_route53_zone" "main" {
+  name         = "teamcsolutions.com."
+  private_zone = false
 }
 
-# ── ACM certificate (must be in us-east-1 for CloudFront) ────────────────────
+# ── ACM wildcard certificate (us-east-1 required for CloudFront) ──────────────
 resource "aws_acm_certificate" "main" {
-  domain_name               = var.domain_name
-  subject_alternative_names = ["*.${var.domain_name}"]
+  domain_name               = "teamcsolutions.com"
+  subject_alternative_names = ["*.teamcsolutions.com"]
   validation_method         = "DNS"
-  lifecycle { create_before_destroy = true }
-  tags = { Project = "shopsecure", ManagedBy = "terraform" }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = {
+    Project     = "shopsecure"
+    Environment = "prod"
+    ManagedBy   = "terraform"
+    Domain      = "teamcsolutions.com"
+  }
 }
 
+# ── DNS validation CNAME records in existing zone ─────────────────────────────
 resource "aws_route53_record" "cert_validation" {
   for_each = {
     for dvo in aws_acm_certificate.main.domain_validation_options : dvo.domain_name => {
@@ -43,20 +53,36 @@ resource "aws_route53_record" "cert_validation" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id         = aws_route53_zone.main.zone_id
+  zone_id         = data.aws_route53_zone.main.zone_id
 }
 
+# ── Wait for certificate to be issued ────────────────────────────────────────
 resource "aws_acm_certificate_validation" "main" {
   certificate_arn         = aws_acm_certificate.main.arn
   validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
+
+  timeouts {
+    create = "10m"
+  }
 }
 
-variable "domain_name" {
-  type        = string
-  description = "Root domain name (e.g. shopsecure.io)"
-  default     = "teamcsolutions.com"
+# ── Outputs ───────────────────────────────────────────────────────────────────
+output "zone_id" {
+  description = "Route53 hosted zone ID for teamcsolutions.com"
+  value       = data.aws_route53_zone.main.zone_id
 }
 
-output "zone_id" { value = aws_route53_zone.main.zone_id }
-output "certificate_arn" { value = aws_acm_certificate.main.arn }
-output "name_servers" { value = aws_route53_zone.main.name_servers }
+output "zone_name" {
+  description = "Route53 hosted zone name"
+  value       = data.aws_route53_zone.main.name
+}
+
+output "certificate_arn" {
+  description = "ACM certificate ARN — use this in ALB and CloudFront"
+  value       = aws_acm_certificate_validation.main.certificate_arn
+}
+
+output "certificate_domain" {
+  description = "Primary domain on the certificate"
+  value       = aws_acm_certificate.main.domain_name
+}
