@@ -5,62 +5,33 @@ metadata:
   namespace: shopsecure-prod
   labels:
     app: product-service
-    version: "1.0.0"
     monitoring: enabled
 spec:
   replicas: 3
   selector:
     matchLabels:
       app: product-service
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
   template:
     metadata:
       labels:
         app: product-service
-        version: "1.0.0"
         monitoring: enabled
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
-        prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: product-service
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001
         fsGroup: 1001
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: DoNotSchedule
-          labelSelector:
-            matchLabels:
-              app: product-service
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: product-service
-          image: 887998956998.dkr.ecr.us-east-1.amazonaws.com/shopsecure/product-service:latest  # Updated by Jenkins
+          image: 887998956998.dkr.ecr.us-east-1.amazonaws.com/shopsecure/product-service:latest
           ports:
             - containerPort: 8080
-              name: http
-          env:
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: db-credentials
-                  key: connection_url
-            - name: REDIS_URL
-              valueFrom:
-                secretKeyRef:
-                  name: redis-credentials
-                  key: url
-            - name: PORT
-              value: "8080"
-            - name: ENV
-              value: "production"
           resources:
             requests:
               cpu: "100m"
@@ -68,29 +39,21 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
           readinessProbe:
             httpGet:
               path: /health/ready
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 5
-            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /health/live
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 10
-            failureThreshold: 3
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop:
-                - ALL
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: tmp
-          emptyDir: {}

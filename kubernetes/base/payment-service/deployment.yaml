@@ -17,9 +17,15 @@ spec:
         app: payment-service
         monitoring: enabled
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: payment-service
-          image: payment-service:latest
+          image: 887998956998.dkr.ecr.us-east-1.amazonaws.com/shopsecure/payment-serviceatest
           ports:
             - containerPort: 8080
           resources:
@@ -29,9 +35,23 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
           readinessProbe:
             httpGet:
-              path: /health/live
+              path: /health/ready
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
