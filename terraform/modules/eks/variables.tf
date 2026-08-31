@@ -11,7 +11,7 @@ variable "environment" {
 variable "kubernetes_version" {
   type        = string
   description = "Kubernetes version for EKS"
-  default     = "1.31"
+  default     = "1.36"
 }
 
 variable "vpc_id" {

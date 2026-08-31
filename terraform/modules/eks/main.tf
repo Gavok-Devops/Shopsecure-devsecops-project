@@ -64,7 +64,7 @@ resource "aws_eks_node_group" "system" {
   node_group_name = "system"
   node_role_arn   = aws_iam_role.eks_node.arn
   subnet_ids      = var.private_subnet_ids
-  instance_types  = ["m5.large"]
+  instance_types  = ["t2.large"]
   capacity_type   = "ON_DEMAND"
 
   scaling_config {
@@ -99,7 +99,7 @@ resource "aws_eks_node_group" "application" {
   node_group_name = "application"
   node_role_arn   = aws_iam_role.eks_node.arn
   subnet_ids      = var.private_subnet_ids
-  instance_types  = ["m5.xlarge"]
+  instance_types  = ["t2.xlarge"]
   capacity_type   = "SPOT"
 
   scaling_config {
